@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>AR Virtual Try-On - SMART CART</title>
+    
+    <!-- Three.js for 3D rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- AR.js for AR functionality -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/build/ar-threex.js"></script>
+    
+    <!-- MediaPipe for pose detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    
+    <link href="http://127.0.0.1:5000/static/css/styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        .ar-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+        }
+        
+        .controls button {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background: #0056b3;
+        }
+        
+        .controls button.active {
+            background: #28a745;
+        }
+        
+        .cloth-selector {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .cloth-item {
+            width: 60px;
+            height: 60px;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .cloth-item:hover {
+            border-color: #007bff;
+            transform: scale(1.1);
+        }
+        
+        .cloth-item.selected {
+            border-color: #28a745;
+            transform: scale(1.1);
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            max-width: 200px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="ar-container">
+        <!-- Video stream -->
+        <video id="video" autoplay muted playsinline></video>
+        
+        <!-- Canvas for AR overlay -->
+        <canvas id="canvas"></canvas>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <h4 style="margin-top: 0;">AR Try-On Controls</h4>
+            <button id="startAR" onclick="startAR()">Start AR</button>
+            <button id="stopAR" onclick="stopAR()">Stop AR</button>
+            <button id="captureBtn" onclick="capturePhoto()">Capture</button>
+            <button onclick="toggleMode()">Switch Mode</button>
+            <button onclick="open3D()">3D Mode</button>
+            <button onclick="goBack()">Back to Home</button>
+            <br>
+            <label>
+                <input type="checkbox" id="showPose" onchange="togglePoseDetection()"> Show Pose
+            </label>
+        </div>
+        
+        <!-- Cloth selector -->
+        <div class="cloth-selector" id="clothSelector">
+            <!-- Will be populated dynamically -->
+        </div>
+        
+        <!-- Info panel -->
+        <div class="info-panel">
+            <h5>Selected Item</h5>
+            <div id="selectedClothInfo">
+                <p>No item selected</p>
+            </div>
+            <div id="poseInfo">
+                <p>Pose: Not detected</p>
+            </div>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Initializing AR...</p>
+        </div>
+        
+        <!-- Error display -->
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        let video, canvas, ctx;
+        let pose, camera;
+        let currentStream = null;
+        let selectedCloth = null;
+        let poseResults = null;
+        let showPoseOverlay = false;
+        let arMode = 'basic'; // 'basic' or '3d'
+        
+        // Initialize AR Try-On
+        async function initializeAR() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Load available clothes
+            loadClothes();
+            
+            // Initialize MediaPipe Pose
+            initializePose();
+        }
+        
+        // Initialize MediaPipe Pose detection
+        function initializePose() {
+            pose = new Pose({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+                }
+            });
+            
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: true,
+                smoothSegmentation: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            
+            pose.onResults(onPoseResults);
+        }
+        
+        // Handle pose detection results
+        function onPoseResults(results) {
+            poseResults = results;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw pose landmarks if enabled
+            if (showPoseOverlay && results.poseLandmarks) {
+                drawPose(results.poseLandmarks);
+            }
+            
+            // Apply virtual clothing
+            if (selectedCloth && results.poseLandmarks) {
+                applyVirtualClothing(results.poseLandmarks);
+            }
+            
+            // Update pose info
+            updatePoseInfo(results);
+        }
+        
+        // Draw pose landmarks
+        function drawPose(landmarks) {
+            ctx.strokeStyle = '#00FF00';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = '#FF0000';
+            
+            // Draw pose connections
+            const connections = [
+                [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // Arms
+                [11, 23], [12, 24], [23, 24], // Torso
+                [23, 25], [25, 27], [24, 26], [26, 28] // Legs
+            ];
+            
+            connections.forEach(([start, end]) => {
+                const startPoint = landmarks[start];
+                const endPoint = landmarks[end];
+                
+                if (startPoint && endPoint) {
+                    ctx.beginPath();
+                    ctx.moveTo(startPoint.x * canvas.width, startPoint.y * canvas.height);
+                    ctx.lineTo(endPoint.x * canvas.width, endPoint.y * canvas.height);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw landmarks
+            landmarks.forEach((landmark, index) => {
+                ctx.beginPath();
+                ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        // Apply virtual clothing overlay
+        function applyVirtualClothing(landmarks) {
+            if (!selectedCloth) return;
+            
+            // Get key body points
+            const leftShoulder = landmarks[11];
+            const rightShoulder = landmarks[12];
+            const leftHip = landmarks[23];
+            const rightHip = landmarks[24];
+            
+            if (leftShoulder && rightShoulder && leftHip && rightHip) {
+                // Calculate clothing position and size
+                const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x) * canvas.width;
+                const torsoHeight = Math.abs(leftHip.y - leftShoulder.y) * canvas.height;
+                
+                const centerX = ((leftShoulder.x + rightShoulder.x) / 2) * canvas.width;
+                const centerY = ((leftShoulder.y + leftHip.y) / 2) * canvas.height;
+                
+                // Draw clothing overlay
+                ctx.save();
+                ctx.globalAlpha = 0.8;
+                
+                // Create clothing shape based on body measurements
+                drawClothingOverlay(centerX, centerY, shoulderWidth * 1.2, torsoHeight * 1.1);
+                
+                ctx.restore();
+            }
+        }
+        
+        // Draw clothing overlay
+        function drawClothingOverlay(x, y, width, height) {
+            const clothImg = new Image();
+            clothImg.onload = function() {
+                // Apply perspective transformation based on body pose
+                ctx.drawImage(clothImg, x - width/2, y - height/2, width, height);
+            };
+            clothImg.src = selectedCloth.src;
+        }
+        
+        // Start AR camera
+        async function startAR() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                };
+                
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                
+                // Initialize camera for MediaPipe
+                camera = new Camera(video, {
+                    onFrame: async () => {
+                        await pose.send({image: video});
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                
+                await camera.start();
+                
+                document.getElementById('startAR').classList.add('active');
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error starting AR:', error);
+                showError('Failed to start AR camera. Please check permissions.');
+            }
+        }
+        
+        // Stop AR camera
+        function stopAR() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            if (camera) {
+                camera.stop();
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('startAR').classList.remove('active');
+        }
+        
+        // Load available clothes
+        function loadClothes() {
+            // This would typically fetch from your backend
+            const clothes = [
+                { id: 1, src: '/static/data/cloth1.jpg', name: 'T-Shirt', price: '$25' },
+                { id: 2, src: '/static/data/cloth2.jpg', name: 'Dress', price: '$45' },
+                { id: 3, src: '/static/data/cloth3.jpg', name: 'Jacket', price: '$65' }
+            ];
+            
+            const selector = document.getElementById('clothSelector');
+            selector.innerHTML = '';
+            
+            clothes.forEach(cloth => {
+                const img = document.createElement('img');
+                img.src = cloth.src;
+                img.className = 'cloth-item';
+                img.onclick = () => selectCloth(cloth, img);
+                img.onerror = () => {
+                    // Fallback for missing images
+                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0yMCAyMEg0MFY0MEgyMFYyMFoiIGZpbGw9IiNDQ0NDQ0MiLz4KPC9zdmc+';
+                };
+                selector.appendChild(img);
+            });
+        }
+        
+        // Select cloth item
+        function selectCloth(cloth, imgElement) {
+            // Remove previous selection
+            document.querySelectorAll('.cloth-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Select new item
+            imgElement.classList.add('selected');
+            selectedCloth = { ...cloth, element: imgElement };
+            
+            // Update info panel
+            document.getElementById('selectedClothInfo').innerHTML = `
+                <p><strong>${cloth.name}</strong></p>
+                <p>Price: ${cloth.price}</p>
+            `;
+        }
+        
+        // Toggle pose detection overlay
+        function togglePoseDetection() {
+            showPoseOverlay = document.getElementById('showPose').checked;
+        }
+        
+        // Toggle between basic and 3D mode
+        function toggleMode() {
+            arMode = arMode === 'basic' ? '3d' : 'basic';
+            alert(`Switched to ${arMode.toUpperCase()} mode`);
+        }
+        
+        // Capture photo
+        function capturePhoto() {
+            const captureCanvas = document.createElement('canvas');
+            const captureCtx = captureCanvas.getContext('2d');
+            
+            captureCanvas.width = video.videoWidth;
+            captureCanvas.height = video.videoHeight;
+            
+            // Draw video frame
+            captureCtx.drawImage(video, 0, 0);
+            
+            // Draw AR overlay
+            if (poseResults && selectedCloth) {
+                captureCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 
+                                   0, 0, captureCanvas.width, captureCanvas.height);
+            }
+            
+            // Convert to blob and download
+            captureCanvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ar-tryon-${Date.now()}.jpg`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/jpeg', 0.9);
+        }
+        
+        // Update pose information
+        function updatePoseInfo(results) {
+            const poseInfo = document.getElementById('poseInfo');
+            if (results.poseLandmarks) {
+                poseInfo.innerHTML = '<p style="color: #28a745;">Pose: Detected ✓</p>';
+            } else {
+                poseInfo.innerHTML = '<p style="color: #dc3545;">Pose: Not detected ✗</p>';
+            }
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerHTML = `<h4>Error</h4><p>${message}</p><button onclick="hideError()">Close</button>`;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Hide error message
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+        
+        // Go back to main app
+        function goBack() {
+            window.location.href = '/home';
+        }
+        
+        // Open 3D mode
+        function open3D() {
+            window.location.href = '/3d_tryon';
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Initialize when page loads
+        window.addEventListener('load', initializeAR);
+        
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', stopAR);
+    </script>
+</body>
+</html>

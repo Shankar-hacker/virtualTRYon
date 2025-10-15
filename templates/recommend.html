@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="description" content="" />
+        <meta name="author" content="" />
+        <title>SMART CART</title>
+        <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.css"></link> -->
+        <!-- Favicon-->
+        <!-- Font Awesome icons (free version)-->
+        <script src="https://use.fontawesome.com/releases/v5.15.3/js/all.js" crossorigin="anonymous"></script>
+        <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css" />
+        <link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css" />
+        <!-- Core theme CSS (includes Bootstrap)-->
+        <link href="http://127.0.0.1:5000/static/css/styles.css" rel="stylesheet" />
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<style>
+            #Box{
+                padding: 25px;
+                background-color: white;
+                height: 70vh;
+                margin-bottom: 10px;
+            }
+            #Box2{
+                padding: 25px;
+                background-color: white;
+                height: auto;
+                margin-bottom: 10px;
+            }
+            #row{
+                margin-top: 100px;
+            }
+            body{
+                background-color: aliceblue;
+            }
+            .content{
+                margin: 0 80px;
+            }
+        </style>
+    </head>
+    <body id="page-top">
+        <!-- Navigation-->
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
+            <div class="container">
+                <!-- <li class="nav-item"><a class="nav-link" href="#page-top">AUTISM</a></li> -->
+                <a class="navbar-brand h1" href="/home">SMART CART</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                    Menu
+                    <i class="fas fa-bars ms-1"></i>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarResponsive">
+                    <ul class="navbar-nav text-uppercase ms-auto py-4 py-lg-0">
+                        <li class="nav-item"><a class="nav-link" href="/home">Home</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/recommendation">Recommendation</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+                        <li><a href="/cart"><i class="fa" style="font-size:24px">&#xf07a;</i><sup>{{ti}}</sup></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+
+        <div class="content">
+       
+            <div class="row" id="row">
+                <div class="col-lg-3">
+                    <div id="Box">
+                        <center><h5>RECOMMENDATION</h5></center>
+                        <hr>
+                        <br>
+                        <form method="post" action="/choose" enctype="multipart/form-data">
+                            <label for="">Choose dress size</label>
+                            <select name="Type" id="Type" class="form-control">
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                                <option value="x-large">Extra Large</option>
+                            </select>
+                            <br>
+                            <input type="submit" value="Submit" class="btn btn-success">
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-lg-9">
+                    {% if Type %}
+                    <div id="Box2">
+                        <center><h3>{{Type}}</h3></center>
+                    </div>
+                    {% endif %}
+                    <div class="row">
+                {% if names %}
+                {% for i in range(n) %}
+                <div class="col-lg-3">
+                    <div id="Box2">
+                        <img src="http://127.0.0.1:5000/{{ images[i] }}" style="width:100%">
+                        {% set name1 = names[i] %}
+                       <center> <a href="{{url_for('upload', name1=name1)}}" class="btn btn-success">Recommend</a></center>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if filenames %}
+                <div class="col-lg-4">
+                    <div id="Box">
+                        <center><h5>Recommendation 1</h5></center>
+                        <hr>
+                        <br>
+                        <img src="http://127.0.0.1:5000/static/data/{{ filenames[indices[0]] }}" style="width:100%">
+                        <br>
+                        {% set img = filenames[indices[0]] %}
+                        <center><a href="{{url_for('trial', img=img)}}" class="btn btn-success">Trial</a></center>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div id="Box">
+                        <center><h5>Recommendation 2</h5></center>
+                        <hr>
+                        <br>
+                        <img src="http://127.0.0.1:5000/static/data/{{ filenames[indices[1]] }}" style="width:100%">
+                        <br>
+                        {% set img = filenames[indices[1]] %}
+                        <center><a href="{{url_for('trial', img=img)}}" class="btn btn-success">Trial</a></center>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div id="Box">
+                        <center><h5>Recommendation 3</h5></center>
+                        <hr>
+                        <br>
+                        <img src="http://127.0.0.1:5000/static/data/{{ filenames[indices[2]] }}" style="width:100%">
+                        <br>
+                        {% set img = filenames[indices[2]] %}
+                        <center><a href="{{url_for('trial', img=img)}}" class="btn btn-success">Trial</a></center>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div id="Box">
+                        <center><h5>Recommendation 4</h5></center>
+                        <hr>
+                        <br>
+                        <img src="http://127.0.0.1:5000/static/data/{{ filenames[indices[3]] }}" style="width:100%">
+                        <br>
+                        {% set img = filenames[indices[3]] %}
+                       <center> <a href="{{url_for('trial', img=img)}}" class="btn btn-success">Trial</a></center>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div id="Box">
+                        <center><h5>Recommendation 5</h5></center>
+                        <hr>
+                        <br>
+                        <img src="http://127.0.0.1:5000/static/data/{{ filenames[indices[4]] }}" style="width:100%">
+                        <br>
+                        {% set img = filenames[indices[4]] %}
+                       <center> <a href="{{url_for('trial', img=img)}}" class="btn btn-success">Trial</a></center>
+                    </div>
+                </div>
+                {% endif %}
+                </div>
+            </div>
+        
+        </div>
+
+        <!-- Bootstrap core JS-->
+        <script src="https://cdn.startbootstrap.com/sb-forms-latest.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.3/css/font-awesome.css"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Core theme JS-->
+        <script src="http://127.0.0.1:5000/static/js/scripts.js"></script>
+        
+    </body>
+</html>
